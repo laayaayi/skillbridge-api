@@ -1,3 +1,5 @@
+from sqlalchemy.exc import IntegrityError
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -14,16 +16,26 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.execute(select(User).where(User.email == payload.email)).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     try:
         hashed = hash_password(payload.password)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    user = User(email=payload.email, hashed_password=hash_password(payload.password))
+    user = User(email=payload.email, hashed_password=hashed)
+
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     db.refresh(user)
     return user
+
 
 
 @router.post("/login", response_model=TokenOut)
