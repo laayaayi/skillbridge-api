@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
@@ -25,7 +26,14 @@ def create_task(
     if not skill:
         raise HTTPException(status_code=404, detail="Skill not found")
 
-    task = Task(skill_id=skill_id, title=payload.title)
+    task = Task(
+    skill_id=skill_id,
+    title=payload.title,
+    status="todo",
+    is_done=False,
+    completed_at=None,
+)
+
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -66,7 +74,11 @@ def mark_done(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task.is_done = True
+    task.is_done = True  
+    task.status = "done"
+    task.completed_at = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(task)
     return task
+

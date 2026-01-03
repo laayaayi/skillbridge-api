@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class TaskCreate(BaseModel):
@@ -8,7 +9,8 @@ class TaskCreate(BaseModel):
 class TaskOut(BaseModel):
     id: int
     title: str
-    is_done: bool
+    status: str
+    completed_at: datetime | None
 
     class Config:
         from_attributes = True

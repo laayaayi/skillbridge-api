@@ -7,6 +7,9 @@ from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.models.skill import Skill
 from app.schemas.skill import SkillCreate, SkillOut, SkillUpdate
+from sqlalchemy import func
+from app.models.task import Task
+from app.schemas.progress import SkillProgressOut
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 
@@ -87,3 +90,34 @@ def delete_skill(
     db.delete(skill)
     db.commit()
     return None
+@router.get("/{skill_id}/progress", response_model=SkillProgressOut)
+def skill_progress(
+    skill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    skill = db.execute(
+        select(Skill).where(Skill.id == skill_id, Skill.user_id == current_user.id)
+    ).scalar_one_or_none()
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+
+    total_tasks = db.execute(
+        select(func.count(Task.id)).where(Task.skill_id == skill_id)
+    ).scalar_one()
+
+    done_tasks = db.execute(
+        select(func.count(Task.id)).where(Task.skill_id == skill_id, Task.status == "done")
+    ).scalar_one()
+
+    percent = 0
+    if total_tasks > 0:
+        percent = int((done_tasks / total_tasks) * 100)
+
+    return SkillProgressOut(
+        skill_id=skill_id,
+        total_tasks=total_tasks,
+        done_tasks=done_tasks,
+        percent=percent,
+    )
+
