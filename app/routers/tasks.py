@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import datetime, timezone
 
+
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
@@ -30,7 +31,6 @@ def create_task(
     skill_id=skill_id,
     title=payload.title,
     status="todo",
-    is_done=False,
     completed_at=None,
 )
 
@@ -74,11 +74,12 @@ def mark_done(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    task.is_done = True  
+      
     task.status = "done"
     task.completed_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(task)
     return task
+
 
